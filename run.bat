@@ -1,0 +1,1 @@
+data_center_irc_connector\bin\Release\data_center_irc_connector.exe %1
