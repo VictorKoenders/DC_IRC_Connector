@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using Trangar.DataCenter.Shared;
+using DataCenterShared;
 
 namespace data_center_irc_connector
 {
@@ -11,39 +11,36 @@ namespace data_center_irc_connector
     {
         private static void Main()
         {
-            var line = Environment.GetCommandLineArgs();
-            Connector.SetName(line[1]);
-
             List<IrcConnection> connections = new List<IrcConnection>();
             connections.Add(new IrcConnection("irc.esper.net", 6667, "TrangarBot2"));
             Func<string, int, IrcConnection> getConnection = (host, port) => connections.First(c => c.Host == host && c.Port == port);
 
             Connector.On("tcp.status", message =>
             {
-                string host = message.Get<string>("host");
-                long port = message.Get<long>("port");
-                string status = message.Get<string>("status");
+                string host = message.GetString("host");
+                int port = message.GetInt("port");
+                string status = message.GetString("status");
 
                 Console.WriteLine("{0}:{1} is now {2}", host, port, status);
 
                 if (status == "connected")
                 {
-                    getConnection(host, (int)port).OnConnect();
+                    getConnection(host, port).OnConnect();
                 }
             });
 
             Connector.On("tcp.data", message =>
             {
-                string host = message.Get<string>("host");
-                long port = message.Get<long>("port");
-                string data = message.Get<string>("data");
+                string host = message.GetString("host");
+                int port = message.GetInt("port");
+                string data = message.GetString("data");
 
-                getConnection(host, (int)port).AddBufer(Encoding.UTF8.GetString(Convert.FromBase64String(data)));
+                getConnection(host, port).AddBufer(Encoding.UTF8.GetString(Convert.FromBase64String(data)));
             });
 
 
             Thread.Sleep(1000);
-            Connector.Send("tcp.connect", new Dictionary<string, object>
+            Connector.Emit("tcp.connect", new Dictionary<string, object>
             {
                 { "host", "irc.esper.net" },
                 { "port", 6667 }
@@ -53,7 +50,7 @@ namespace data_center_irc_connector
         }
     }
 
-    class IrcConnection
+	internal class IrcConnection
     {
         public IrcConnection(string host, int port, string name)
         {
@@ -68,17 +65,17 @@ namespace data_center_irc_connector
             Send(string.Format("USER {0} {0} {1} :{0}", Name, Host));
         }
 
-        public string Name { get; set; }
-        public string Host { get; set; }
-        public int Port { get; set; }
+	    private string Name { get; }
+        public string Host { get; }
+        public int Port { get; }
 
-        public string Buffer { get; set; }
+	    private string Buffer { get; set; }
 
-        public void Send(string command)
+	    private void Send(string command)
         {
             Console.WriteLine("< {0}", command);
             command += "\r\n";
-            Connector.Send("tcp.send", new Dictionary<string, object>
+            Connector.Emit("tcp.send", new Dictionary<string, object>
             {
                 { "host", Host },
                 { "port", Port },
@@ -99,7 +96,7 @@ namespace data_center_irc_connector
             }
         }
 
-        public void ParseLine(string line)
+		private void ParseLine(string line)
         {
             Console.WriteLine("> {0}", line);
 
